@@ -10,19 +10,27 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.static("public"));
 
-io.on("connection", (socket) => {
+const users = {};
 
-  console.log("user connected");
+io.on("connection", (socket) => {
+  console.log("user connected:", socket.id);
 
   socket.on("join", (nickname) => {
-    socket.nickname = nickname;
-    io.emit("chat", nickname + " joined");
+    users[socket.id] = nickname || "익명";
+    io.emit("chat", users[socket.id] + " joined");
   });
 
   socket.on("chat", (msg) => {
-    io.emit("chat", socket.nickname + ": " + msg);
+    const nickname = users[socket.id] || "익명";
+    io.emit("chat", nickname + ": " + msg);
   });
 
+  socket.on("disconnect", () => {
+    if (users[socket.id]) {
+      io.emit("chat", users[socket.id] + " left");
+      delete users[socket.id];
+    }
+  });
 });
 
 server.listen(PORT, "0.0.0.0", () => {
