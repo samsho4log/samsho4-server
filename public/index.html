@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SamSho4 Lobby</title>
+</head>
+
+<body>
+
+<h1>SamSho4 Lobby</h1>
+
+<input id="nickname" placeholder="닉네임 입력">
+<button onclick="enter()">입장</button>
+
+<hr>
+
+<input id="msg" placeholder="채팅">
+<button onclick="send()">전송</button>
+
+<div id="chat"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+
+<script>
+
+const socket = io();
+
+function enter(){
+    const nick = document.getElementById("nickname").value;
+    socket.emit("join", nick);
+}
+
+function send(){
+    const msg = document.getElementById("msg").value;
+    socket.emit("chat", msg);
+}
+
+socket.on("chat", (data)=>{
+    const div = document.getElementById("chat");
+    div.innerHTML += "<p>"+data+"</p>";
+});
+
+</script>
+
+</body>
+</html>
