@@ -1,46 +1,180 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
-<meta charset="UTF-8">
-<title>SamSho4 Lobby</title>
+  <meta charset="UTF-8">
+  <title>SamSho4 Lobby</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+
+    .topbar {
+      margin-bottom: 20px;
+    }
+
+    .layout {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+    }
+
+    .panel {
+      border: 1px solid #999;
+      padding: 10px;
+      width: 32%;
+      min-height: 400px;
+      box-sizing: border-box;
+    }
+
+    #chatBox {
+      border: 1px solid #ccc;
+      height: 300px;
+      overflow-y: auto;
+      padding: 8px;
+      margin-bottom: 10px;
+    }
+
+    #userList li,
+    #roomList li {
+      margin-bottom: 8px;
+    }
+
+    button {
+      cursor: pointer;
+    }
+  </style>
 </head>
-
 <body>
+  <h1>SamSho4 Lobby</h1>
 
-<h1>SamSho4 Lobby</h1>
+  <div class="topbar">
+    <input id="nickname" placeholder="닉네임 입력">
+    <button onclick="joinLobby()">입장</button>
+    <span id="myStatus"></span>
+  </div>
 
-<input id="nickname" placeholder="닉네임 입력">
-<button onclick="enter()">입장</button>
+  <div class="layout">
+    <div class="panel">
+      <h3>유저 목록</h3>
+      <ul id="userList"></ul>
+    </div>
 
-<hr>
+    <div class="panel">
+      <h3>로비 채팅</h3>
+      <div id="chatBox"></div>
+      <input id="chatInput" placeholder="채팅 입력" style="width: 70%;">
+      <button onclick="sendChat()">전송</button>
+    </div>
 
-<input id="msg" placeholder="채팅">
-<button onclick="send()">전송</button>
+    <div class="panel">
+      <h3>사쇼 방 목록</h3>
+      <input id="roomTitle" placeholder="방 제목 입력" style="width: 70%;">
+      <button onclick="createRoom()">방 만들기</button>
+      <button onclick="leaveRoom()">방 나가기</button>
+      <hr>
+      <ul id="roomList"></ul>
+    </div>
+  </div>
 
-<div id="chat"></div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    let joined = false;
 
-<script src="/socket.io/socket.io.js"></script>
+    function joinLobby() {
+      const nickname = document.getElementById("nickname").value.trim();
+      if (!nickname) {
+        alert("닉네임을 입력하세요.");
+        return;
+      }
 
-<script>
+      socket.emit("joinLobby", nickname);
+      joined = true;
+      document.getElementById("myStatus").textContent = " 입장 완료: " + nickname;
+    }
 
-const socket = io();
+    function sendChat() {
+      if (!joined) {
+        alert("먼저 입장 버튼을 누르세요.");
+        return;
+      }
 
-function enter(){
-    const nick = document.getElementById("nickname").value;
-    socket.emit("join", nick);
-}
+      const input = document.getElementById("chatInput");
+      const msg = input.value.trim();
+      if (!msg) return;
 
-function send(){
-    const msg = document.getElementById("msg").value;
-    socket.emit("chat", msg);
-}
+      socket.emit("sendLobbyChat", msg);
+      input.value = "";
+    }
 
-socket.on("chat", (data)=>{
-    const div = document.getElementById("chat");
-    div.innerHTML += "<p>"+data+"</p>";
-});
+    function createRoom() {
+      if (!joined) {
+        alert("먼저 입장 버튼을 누르세요.");
+        return;
+      }
 
-</script>
+      const title = document.getElementById("roomTitle").value.trim();
+      if (!title) {
+        alert("방 제목을 입력하세요.");
+        return;
+      }
 
+      socket.emit("createRoom", title);
+      document.getElementById("roomTitle").value = "";
+    }
+
+    function joinRoom(roomId) {
+      if (!joined) {
+        alert("먼저 입장 버튼을 누르세요.");
+        return;
+      }
+
+      socket.emit("joinRoom", roomId);
+    }
+
+    function leaveRoom() {
+      if (!joined) {
+        alert("먼저 입장 버튼을 누르세요.");
+        return;
+      }
+
+      socket.emit("leaveRoom");
+    }
+
+    socket.on("chatMessage", (msg) => {
+      const chatBox = document.getElementById("chatBox");
+      const p = document.createElement("p");
+      p.textContent = msg;
+      chatBox.appendChild(p);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    });
+
+    socket.on("userList", (users) => {
+      const ul = document.getElementById("userList");
+      ul.innerHTML = "";
+
+      users.forEach((user) => {
+        const li = document.createElement("li");
+        li.textContent = user.nickname + (user.roomId ? " [방 참가중]" : " [로비]");
+        ul.appendChild(li);
+      });
+    });
+
+    socket.on("roomList", (rooms) => {
+      const ul = document.getElementById("roomList");
+      ul.innerHTML = "";
+
+      rooms.forEach((room) => {
+        const li = document.createElement("li");
+        li.innerHTML =
+          "<strong>" + room.title + "</strong><br>" +
+          "방장: " + room.host + "<br>" +
+          "P1: " + (room.player1 || "-") + " / P2: " + (room.player2 || "-") + "<br>" +
+          "<button onclick=\"joinRoom('" + room.id + "')\">방 들어가기</button>";
+        ul.appendChild(li);
+      });
+    });
+  </script>
 </body>
 </html>
